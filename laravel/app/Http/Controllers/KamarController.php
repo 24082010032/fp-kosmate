@@ -9,7 +9,7 @@ class KamarController extends Controller
 {
     public function index()
     {
-        $kamar = Kamar::orderBy('created_at','desc')->get();
+        $kamar = Kamar::orderBy('created_at', 'desc')->get();
         return view('pemilik.kamar.index', compact('kamar'));
     }
 
@@ -20,18 +20,19 @@ class KamarController extends Controller
 
     public function store(Request $request)
     {
+        // Validasi disesuaikan dengan atribut name="tipe_kamar" dari form
         $data = $request->validate([
-            'name' => 'required|string|max:255',
-            'price' => 'required|string|max:255',
-            'status' => 'required|in:Tersedia,Terisi',
-            'description' => 'nullable|string',
+            'tipe_kamar' => 'required|string|max:255',
+            'harga'      => 'required|string|max:255',
+            'status'     => 'required|in:Tersedia,Terisi',
+            'description'=> 'nullable|string',
         ]);
 
         Kamar::create([
-            'nama' => $data['name'],
-            'harga' => $data['price'],
-            'status' => $data['status'],
-            'fasilitas' => $data['description'] ?? null,
+            'tipe_kamar' => $data['tipe_kamar'],
+            'harga'      => $data['harga'],
+            'status'     => $data['status'],
+            'fasilitas'  => $data['description'] ?? null,
         ]);
 
         return redirect()->route('pemilik.kamar.index')->with('message', 'Kamar berhasil ditambahkan.');
@@ -44,18 +45,19 @@ class KamarController extends Controller
 
     public function update(Request $request, Kamar $kamar)
     {
+        // Validasi saat update juga disesuaikan ke properti tipe_kamar
         $data = $request->validate([
-            'name' => 'required|string|max:255',
-            'price' => 'required|string|max:255',
-            'status' => 'required|in:Tersedia,Terisi',
-            'description' => 'nullable|string',
+            'tipe_kamar' => 'required|string|max:255',
+            'harga'      => 'required|string|max:255',
+            'status'     => 'required|in:Tersedia,Terisi',
+            'description'=> 'nullable|string',
         ]);
 
         $kamar->update([
-            'nama' => $data['name'],
-            'harga' => $data['price'],
-            'status' => $data['status'],
-            'fasilitas' => $data['description'] ?? null,
+            'tipe_kamar' => $data['tipe_kamar'],
+            'harga'      => $data['harga'],
+            'status'     => $data['status'],
+            'fasilitas'  => $data['description'] ?? null,
         ]);
 
         return redirect()->route('pemilik.kamar.index')->with('message', 'Kamar berhasil diupdate.');

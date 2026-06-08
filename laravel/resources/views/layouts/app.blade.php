@@ -13,22 +13,19 @@
       <a href="{{ route('welcome') }}" class="font-bold text-xl">Kosmate</a>
       <nav class="space-x-4 flex items-center">
         @auth
-          <!-- TOMBOL DASHBOARD SUDAH DIPERBAIKI SINKRON TOTAL DENGAN WEB.PHP -->
+          {{-- Navigasi Dashboard Khusus Non-Pemilik --}}
           @if(auth()->user()->role === 'penghuni')
             <a href="{{ route('penghuni.dashboard') }}" class="nav-link">Dashboard</a>
-          @elseif(auth()->user()->role === 'pemilik')
-            <a href="{{ route('pemilik.dashboard') }}" class="nav-link">Dashboard</a>
-          @else
+          @elseif(auth()->user()->role === 'calon_penyewa')
             <a href="{{ route('calon-penyewa.dashboard') }}" class="nav-link">Dashboard</a>
           @endif
 
-          @if(auth()->user()->role === 'pemilik')
-            <a href="{{ route('pemilik.settings') }}" class="nav-link">Pengaturan</a>
-          @endif
+          {{-- Tombol Dashboard & Pengaturan Milik Pemlik Sudah Dihapus Total dari Sini --}}
           
+          {{-- Tombol Logout --}}
           <form method="POST" action="{{ route('logout') }}" class="inline">
             @csrf
-            <button class="ml-2 text-sm text-red-600 hover:underline">Logout</button>
+            <button class="ml-2 text-sm text-red-600 hover:underline font-semibold">Logout</button>
           </form>
         @else
           <a href="{{ route('login') }}" class="nav-link">Login</a>
