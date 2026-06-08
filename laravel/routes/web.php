@@ -5,6 +5,7 @@ use App\Http\Controllers\KosController;
 use App\Http\Controllers\KamarController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\KomplainController;
+use App\Http\Controllers\TagihanController;
 
 // ==========================================
 // RUTE AUTENTIKASI (LOGIN & REGISTER)
@@ -25,14 +26,11 @@ Route::middleware('auth')->prefix('pemilik')->name('pemilik.')->group(function (
     Route::get('/dashboard', function () {
         abort_unless(auth()->user()->role === 'pemilik', 403);
         return app(\App\Http\Controllers\KosController::class)->pemilik();
-    })->name('dashboard');
+    })->name('home');
     
     Route::resource('kamar', KamarController::class)->except(['show']);
     
-    // 🟢 SIKAT SINKRON KE CONTROLLER (Udah gak digembok teks dummy lagi)
     Route::get('/users/calon-penyewa', [KosController::class, 'listCalonPenyewa'])->name('users.calon_penyewa');
-    
-    // Pengaman rute form buat tagihan di blade pemilik agar tidak eror
     Route::post('/tagihans', function () { return back(); })->name('tagihans.store');
     
     Route::get('/settings', function () {
@@ -42,29 +40,46 @@ Route::middleware('auth')->prefix('pemilik')->name('pemilik.')->group(function (
 });
 
 // ==========================================
-// DASHBOARD PENGHUNI KOS (KEBAL TYPO "S" & FIX DATA)
+// DASHBOARD PENGHUNI KOS (FITUR LENGKAP & AMAN REVISI)
 // ==========================================
 Route::middleware('auth')->prefix('penghuni')->name('penghuni.')->group(function () {
     
-    // Rute Dashboard Penghuni (Kirim data lengkap ke blade)
+    // 1. Dashboard Informasi Kamar (Menampilkan Data Tagihan & Komplain)
     Route::get('/dashboard', function () {
         abort_unless(auth()->user()->role === 'penghuni', 403);
         
         $user = auth()->user(); 
         
-        // Ambil data jumlah asli dari database biar sinkron sama tampilan box dashboard
-        $totalTagihan = \Illuminate\Support\Facades\DB::table('tagihans')->where('user_id', $user->id)->count();
-        $totalKomplain = \Illuminate\Support\Facades\DB::table('komplains')->where('user_id', $user->id)->count();
+        // Mengambil data riwayat pembayaran & komplain asli dari database
+        $riwayatBayar = \Illuminate\Support\Facades\DB::table('pembayarans')->where('user_id', $user->id)->latest()->get();
+        $riwayatKomplain = \Illuminate\Support\Facades\DB::table('komplains')->where('user_id', $user->id)->latest()->get();
         
-        return view('roles.penghuni', compact('user', 'totalTagihan', 'totalKomplain'));
+        // Statistik untuk box dashboard
+        $totalTagihan = \Illuminate\Support\Facades\DB::table('tagihans')->where('user_id', $user->id)->count();
+        $totalKomplain = $riwayatKomplain->count();
+        
+        // Data static informasi kamar
+        $infoKamar = [
+            'nomor_kamar' => 'A-03', 
+            'jatuh_tempo' => date('Y-m-d', strtotime('+1 month')),
+            'harga' => 1500000
+        ];
+        
+        return view('roles.penghuni', compact('user', 'totalTagihan', 'totalKomplain', 'infoKamar', 'riwayatBayar', 'riwayatKomplain'));
     })->name('dashboard');
 
-    // JALUR KOMPLAIN (Ganda: Mengatasi typo 'komplain' vs 'komplains' di Blade)
-    Route::get('/komplain', [KomplainController::class, 'index'])->name('komplain.index');
-    Route::post('/komplain', [KomplainController::class, 'store'])->name('komplain.store');
-    Route::post('/komplains-typo', [KomplainController::class, 'store'])->name('komplains.store'); 
+    // 2. Upload Bukti Pembayaran (DIALIKKAN KE TagihanController)
+    Route::post('/upload-pembayaran', [TagihanController::class, 'uploadPembayaran'])->name('upload_pembayaran');
 
-    // JALUR TAGIHAN (Ganda: Mengatasi 'tagihan' vs 'tagihans' di Blade)
+    // 4. Cetak Kuitansi Digital (DIALIKKAN KE TagihanController)
+    Route::get('/kuitansi/{id}/cetak', [TagihanController::class, 'cetakKuitansi'])->name('cetak_kuitansi');
+
+    // 3. Formulir Komplain Fasilitas (DIALIKKAN KE KomplainController)
+    Route::post('/kirim-komplain', [KomplainController::class, 'kirimKomplain'])->name('kirim_komplain');
+    Route::post('/komplain', [KomplainController::class, 'kirimKomplain'])->name('komplain.store');
+    Route::post('/komplains-typo', [KomplainController::class, 'kirimKomplain'])->name('komplains.store'); 
+
+    // JALUR TAGIHAN LAMA
     Route::get('/tagihan', function () { 
         return view('roles.tagihan'); 
     })->name('tagihan.index');
@@ -81,4 +96,6 @@ Route::middleware('auth')->prefix('calon-penyewa')->name('calon-penyewa.')->grou
         abort_unless(auth()->user()->role === 'calon_penyewa', 403);
         return app(\App\Http\Controllers\KosController::class)->calonPenyewa();
     })->name('dashboard');
+
+    Route::post('/booking/{kamar_id}', [KosController::class, 'prosesBooking'])->name('booking.store');
 });

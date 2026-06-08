@@ -6,6 +6,21 @@
 @source '../**/*.js';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    /* 1. FONT YANG LEBIH BULAT & BESAR BIAR LUCU */
+    --font-sans: 'Quicksand', 'Nunito', ui-sans-serif, system-ui;
+
+    /* 2. PALET WARNA PASTEL GEMAS */
+    --color-primary: #ffb7b2;     /* Pink Strawberry Lembut (Buat tombol utama/aksen penting) */
+    --color-secondary: #ffdac1;   /* Peach/Oranye Susu (Buat border atau highlight pendukung) */
+    --color-accent: #e2f0cb;      /* Hijau Mint/Matcha (Buat lencana status atau tombol sukses) */
+    --color-info: #b5ead7;        /* Biru Tosca Pastel */
+    --color-sweet: #e8d7ff;       /* Ungu Lavender Imut */
+    
+    /* Warna Dasar */
+    --color-background: #fffdf9;  /* Putih Cream Hangat (Biar gak kaku kayak putih biasa) */
+    --color-text-main: #4a3e3d;   /* Cokelat Gelap Lembut (Gantiin warna hitam biar teksnya ramah di mata) */
+
+    /* 3. LENGKUNGAN CARD YANG BULAT BANGET (BOBA STYLE) */
+    --radius-cute: 1.5rem;        /* Rounded super bulat buat card & box */
+    --radius-button: 9999px;      /* Tombolnya jadi kapsul bulat penuh */
 }

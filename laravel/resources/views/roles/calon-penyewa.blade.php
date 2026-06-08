@@ -24,9 +24,11 @@
               <span class="rounded-full px-3 py-1 text-sm font-semibold {{ $kamar->status === 'Tersedia' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800' }}">{{ $kamar->status }}</span>
             </div>
             <p class="mt-5 text-slate-600">{{ Str::limit($kamar->fasilitas, 120) }}</p>
-            <form method="POST" action="#" class="mt-6">
+            
+            {{-- 🟢 ACTION ROUTE & METHOD SUBMIT SUDAH DIAKTIFKAN --}}
+            <form method="POST" action="{{ route('calon-penyewa.booking.store', $kamar->id) }}" class="mt-6">
               @csrf
-              <button type="button" class="w-full rounded-3xl bg-pink-500 px-4 py-3 text-white transition hover:bg-pink-600">Pesan Kamar</button>
+              <button type="submit" class="w-full rounded-3xl bg-pink-500 px-4 py-3 text-white transition hover:bg-pink-600">Pesan Kamar</button>
             </form>
           </article>
         @endforeach

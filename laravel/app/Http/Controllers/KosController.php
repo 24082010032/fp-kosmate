@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Kamar;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Schema;
 
 class KosController extends Controller
 {
@@ -114,5 +115,44 @@ class KosController extends Controller
     public function destroy($id)
     {
         return redirect()->route('pemilik.kamar.index')->with('message', 'Kamar berhasil dihapus.');
+    }
+
+    // 🟢 AMAN & PINTAR: DETEKSI OTOMATIS STRUKTUR KOLOM DATABASE KAMAR
+    public function prosesBooking(Request $request, $kamar_id)
+    {
+        $user = auth()->user();
+
+        // Cari data kamar berdasarkan ID
+        $kamar = DB::table('kamars')->where('id', $kamar_id)->first();
+
+        if (!$kamar) {
+            return back()->with('error', 'Kamar tidak ditemukan!');
+        }
+
+        // Cek status ketersediaan kamar
+        if ($kamar->status !== 'Tersedia') {
+            return back()->with('error', 'Maaf, kamar ini sudah tidak tersedia!');
+        }
+
+        // Deteksi otomatis nama kolom relasi kamar pada tabel tagihans
+        $kolomKamar = 'kamar_id';
+        if (Schema::hasColumn('tagihans', 'id_kamar')) {
+            $kolomKamar = 'id_kamar';
+        } elseif (Schema::hasColumn('tagihans', 'kos_id')) {
+            $kolomKamar = 'kos_id';
+        }
+
+        // Memasukkan data transaksi awal (Bisa diolah pakai ACID oleh temanmu nanti)
+        DB::transaction(function () use ($user, $kamar_id, $kolomKamar) {
+            DB::table('tagihans')->insert([
+                'user_id' => $user->id,
+                $kolomKamar => $kamar_id,
+                'status' => 'Pending',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+
+        return redirect()->route('calon-penyewa.dashboard')->with('success', 'Berhasil melakukan booking! Menunggu persetujuan pemilik.');
     }
 }
