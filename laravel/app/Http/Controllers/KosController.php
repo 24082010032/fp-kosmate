@@ -296,4 +296,28 @@ class KosController extends Controller
 
         return view('pemilik.laporan_cetak', compact('kamars', 'penghunis', 'totalPemasukan'));
     }
+
+    public function batalkanSewa($id)
+    {
+        $user = \App\Models\User::findOrFail($id);
+        
+        // Simpan nomor kamar sebelum dihapus agar bisa kita reset status kamarnya
+        $noKamar = $user->no_kamar;
+
+        // Update user: kembalikan role ke calon_penyewa
+        $user->update([
+            'role' => 'calon_penyewa',
+            'no_kamar' => null, 
+            'status_tagihan' => 'belum_bayar'
+        ]);
+        
+        // Reset status kamar di tabel Kamar agar kembali tersedia
+        if ($noKamar) {
+            \App\Models\Kamar::where('tipe_kamar', $noKamar)
+                            ->orWhere('id', $noKamar)
+                            ->update(['status' => 'Tersedia']);
+        }
+
+        return redirect()->back()->with('success', 'Data penghuni berhasil dibatalkan dan kamar kembali tersedia.');
+    }
 }

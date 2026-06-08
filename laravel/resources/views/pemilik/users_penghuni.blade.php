@@ -12,7 +12,6 @@
           <p class="mt-3 text-slate-600">Pantau kamar, status tagihan bulanan, dan verifikasi bukti transfer pembayaran penghuni.</p>
         </div>
         <div class="flex gap-3">
-          {{-- REVISI: Tombol Ekspor Laporan yang tidak digunakan telah dihapus untuk menyederhanakan navigasi --}}
           <a href="{{ route('pemilik.dashboard') }}" class="rounded-3xl bg-amber-100 px-6 py-3 font-semibold text-amber-900 shadow-lg shadow-amber-200/50 text-sm hover:bg-amber-200 transition">
             Dashboard Pemilik
           </a>
@@ -35,6 +34,7 @@
               <th scope="col" class="px-6 py-4 text-center">No Kamar</th>
               <th scope="col" class="px-6 py-4 text-center">Status Tagihan</th>
               <th scope="col" class="px-6 py-4 text-center">Aksi Verifikasi</th>
+              <th scope="col" class="px-6 py-4 text-center">Aksi Lain</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100 border-t border-slate-100">
@@ -67,7 +67,6 @@
                 </td>
                 <td class="px-6 py-4 text-center">
                   @if(isset($u->status_tagihan) && $u->status_tagihan === 'menunggu_konfirmasi')
-                    {{-- Tombol untuk membuka modal gambar bukti transfer --}}
                     <button onclick="openModal('{{ asset('storage/' . $u->bukti_transfer) }}', '{{ route('pemilik.users.konfirmasi_lunas', $u->id) }}')" class="rounded-2xl bg-amber-500 px-4 py-2 text-xs font-bold text-white shadow-md shadow-amber-500/20 hover:bg-amber-600 transition">
                       Cek Bukti & Setujui
                     </button>
@@ -77,10 +76,19 @@
                     <span class="text-xs text-slate-400 italic">Menunggu penghuni bayar</span>
                   @endif
                 </td>
+                <td class="px-6 py-4 text-center">
+                  <form action="{{ route('pemilik.users.destroy', $u->id) }}" method="POST" onsubmit="return confirm('Yakin ingin membatalkan sewa untuk penghuni ini? Kamar akan kembali tersedia.')">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="text-xs text-rose-500 font-bold hover:text-rose-700 hover:underline transition">
+                      Batalkan Sewa
+                    </button>
+                  </form>
+                </td>
               </tr>
             @empty
               <tr>
-                <td colspan="5" class="px-6 py-10 text-center text-slate-400">
+                <td colspan="6" class="px-6 py-10 text-center text-slate-400">
                   <p class="text-base font-semibold">Belum ada penghuni aktif</p>
                 </td>
               </tr>

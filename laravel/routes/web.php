@@ -28,7 +28,7 @@ Route::middleware('auth')->prefix('pemilik')->name('pemilik.')->group(function (
         return app(\App\Http\Controllers\KosController::class)->pemilik();
     })->name('dashboard');
     
-    // 📊 FITUR BARU: Rute Visualisasi Grafik & Cetak Laporan PDF
+    // FITUR BARU: Rute Visualisasi Grafik & Cetak Laporan PDF
     Route::get('/pendapatan/grafik', [KosController::class, 'grafikPendapatan'])->name('pendapatan.grafik');
     Route::get('/laporan/cetak', [KosController::class, 'cetakLaporan'])->name('laporan.cetak');
     
@@ -40,7 +40,7 @@ Route::middleware('auth')->prefix('pemilik')->name('pemilik.')->group(function (
     Route::put('/kamar/{id}', [KosController::class, 'update'])->name('kamar.update');
     Route::delete('/kamar/{id}', [KosController::class, 'destroy'])->name('kamar.destroy');
     
-    // 🛠️ Rute Visualisasi Denah / Monitoring Real-time Kamar
+    // Rute Visualisasi Denah / Monitoring Real-time Kamar
     Route::get('/kamar/monitoring', [KosController::class, 'monitoringKamar'])->name('kamar.monitoring');
     
     // Kelola data pengguna (Calon Penyewa & Penghuni Aktif)
@@ -63,6 +63,15 @@ Route::middleware('auth')->prefix('pemilik')->name('pemilik.')->group(function (
     // Pengaman rute form buat tagihan di blade pemilik agar tidak error
     Route::post('/tagihans', function () { return back(); })->name('tagihans.store');
     
+    // Aksi verifikasi tombol ubah status tagihan menjadi lunas
+    Route::post('/users/penghuni/konfirmasi/{id}', [KosController::class, 'konfirmasiLunas'])->name('users.konfirmasi_lunas');
+
+    // Ubah rute ini di routes/web.php
+Route::delete('/users/penghuni/{id}', [KosController::class, 'batalkanSewa'])->name('users.destroy');
+
+    // Rute Laporan Komplain Masuk dari Database
+    Route::get('/komplains/masuk', [KosController::class, 'listKomplain'])->name('komplains.index');
+
 });
 
 // ==========================================
