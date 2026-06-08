@@ -36,12 +36,12 @@
       
       <div>
         <label class="font-semibold text-slate-700">Nama Kamar</label>
-        <input name="tipe_kamar" type="text" value="{{ old('tipe_kamar') }}" placeholder="Contoh: Sweet Blossom" class="mt-2 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-pink-400" />
+        <input name="tipe_kamar" type="text" value="{{ old('tipe_kamar') }}" placeholder="Contoh: Sweet Blossom" class="mt-2 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-pink-400" required />
       </div>
       
       <div>
         <label class="font-semibold text-slate-700">Harga</label>
-        <input name="harga" type="number" value="{{ old('harga') }}" placeholder="Contoh: 1200000" class="mt-2 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-emerald-400" />
+        <input name="harga" type="number" value="{{ old('harga') }}" placeholder="Contoh: 1200000" class="mt-2 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-emerald-400" required />
       </div>
       
       <div>
@@ -52,9 +52,10 @@
         </select>
       </div>
       
+      <!-- REVISI: name="fasilitas" agar tersimpan ke database -->
       <div>
-        <label class="font-semibold text-slate-700">Deskripsi</label>
-        <textarea name="description" rows="4" placeholder="Deskripsi singkat kamar" class="mt-2 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-pink-400">{{ old('description') }}</textarea>
+        <label class="font-semibold text-slate-700">Deskripsi Fasilitas</label>
+        <textarea name="fasilitas" rows="4" placeholder="Contoh: Kamar mandi dalam, Kasur, Lemari, WiFi" class="mt-2 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-pink-400">{{ old('fasilitas') }}</textarea>
       </div>
       
       <button type="submit" class="w-full rounded-3xl bg-emerald-500 px-6 py-3 text-white font-semibold shadow-lg shadow-emerald-300/40">Simpan Kamar</button>

@@ -300,24 +300,69 @@ class KosController extends Controller
     public function batalkanSewa($id)
     {
         $user = \App\Models\User::findOrFail($id);
-        
-        // Simpan nomor kamar sebelum dihapus agar bisa kita reset status kamarnya
-        $noKamar = $user->no_kamar;
+        $noKamar = $user->no_kamar; // Ini harusnya berisi "Deluxe"
 
-        // Update user: kembalikan role ke calon_penyewa
-        $user->update([
-            'role' => 'calon_penyewa',
-            'no_kamar' => null, 
-            'status_tagihan' => 'belum_bayar'
-        ]);
-        
-        // Reset status kamar di tabel Kamar agar kembali tersedia
+        // 1. UPDATE KAMAR: Cari yang tipe_kamar nya sama dengan yang dipesan user
         if ($noKamar) {
-            \App\Models\Kamar::where('tipe_kamar', $noKamar)
-                            ->orWhere('id', $noKamar)
-                            ->update(['status' => 'Tersedia']);
+            $updateKamar = \App\Models\Kamar::where('tipe_kamar', $noKamar)
+                                            ->update(['status' => 'Tersedia']);
+            
+            // Logika untuk memastikan kalau ternyata gagal update
+            if (!$updateKamar) {
+                \Log::error("Gagal update kamar: " . $noKamar);
+            }
         }
 
-        return redirect()->back()->with('success', 'Data penghuni berhasil dibatalkan dan kamar kembali tersedia.');
+        // 2. UPDATE USER: Kembalikan ke calon_penyewa
+        $user->update([
+            'role' => 'calon_penyewa',
+            'no_kamar' => null,
+            'status_tagihan' => 'belum_bayar'
+        ]);
+
+        return redirect()->back()->with('success', 'Sewa dibatalkan. Kamar statusnya sudah diubah ke Tersedia.');
+    }
+
+    public function prosesBooking(Request $request, $id)
+    {
+        return DB::transaction(function () use ($id) {
+            $kamar = \App\Models\Kamar::where('id', $id)->lockForUpdate()->firstOrFail();
+
+            if ($kamar->status !== 'Tersedia') {
+                return redirect()->back()->with('error', 'Maaf, kamar sudah tidak tersedia.');
+            }
+
+            // Update status kamar jadi dipesan/proses
+            $kamar->update(['status' => 'Terisi']); 
+
+            // Update user: Set no_kamar dan tandai sedang mengajukan sewa
+            auth()->user()->update([
+                'no_kamar' => $kamar->tipe_kamar, // Sesuaikan field
+                'status_tagihan' => 'menunggu_konfirmasi'
+            ]);
+
+            return redirect()->route('calon-penyewa.dashboard')->with('success', 'Booking berhasil! Menunggu konfirmasi pemilik.');
+        });
+    }
+
+    public function dashboardCalonPenyewa()
+    {
+        $user = auth()->user();
+        // Jika sudah punya no_kamar, berarti sedang menunggu verifikasi/sudah diterima
+        return view('roles.calon-penyewa-dashboard', compact('user'));
+    }
+
+    public function katalogKamar()
+    {
+        // Mengambil semua kamar yang statusnya 'Tersedia'
+        $kamars = Kamar::where('status', 'Tersedia')->get();
+        
+        return view('roles.katalog', compact('kamars'));
+    }
+
+    public function detailKamar($id) 
+    {
+    $kamar = \App\Models\Kamar::findOrFail($id);
+    return view('roles.detail-kamar', compact('kamar'));
     }
 }
