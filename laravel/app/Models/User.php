@@ -20,6 +20,7 @@ class User extends Authenticatable
         'role',
         'no_hp',
         'no_kamar',
+        'status_tagihan',
     ];
 
     /**

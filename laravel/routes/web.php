@@ -2,13 +2,13 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\KosController;
-use App\Http\Controllers\KamarController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\KomplainController;
 use App\Http\Controllers\TagihanController;
+use Illuminate\Support\Facades\DB;
 
 // ==========================================
-// RUTE AUTENTIKASI (LOGIN & REGISTER)
+// RUTE AUTENTIKASI
 // ==========================================
 Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
 Route::post('/register', [AuthController::class, 'register']);
@@ -16,22 +16,42 @@ Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-// Halaman Utama / Landing Page
 Route::get('/', [KosController::class, 'welcome'])->name('welcome');
 
 // ==========================================
-// DASHBOARD PEMILIK KOS
+// DASHBOARD PEMILIK KOS (GABUNGAN FITUR DINDA & DHEA)
 // ==========================================
-Route::middleware('auth')->prefix('pemilik')->name('pemilik.')->group(function () {
+Route::middleware(['auth'])->prefix('pemilik')->name('pemilik.')->group(function () {
+    
     Route::get('/dashboard', function () {
         abort_unless(auth()->user()->role === 'pemilik', 403);
-        return app(\App\Http\Controllers\KosController::class)->pemilik();
-    })->name('home');
+        return app(KosController::class)->pemilik();
+    })->name('dashboard');
     
-    Route::resource('kamar', KamarController::class)->except(['show']);
+    Route::get('/pendapatan/grafik', [KosController::class, 'grafikPendapatan'])->name('pendapatan.grafik');
+    Route::get('/laporan/cetak', [KosController::class, 'cetakLaporan'])->name('laporan.cetak');
     
+    // CRUD Kamar (Fitur Dhea)
+    Route::get('/kamar', [KosController::class, 'index'])->name('kamar.index');
+    Route::get('/kamar/create', [KosController::class, 'create'])->name('kamar.create');
+    Route::post('/kamar', [KosController::class, 'store'])->name('kamar.store');
+    Route::get('/kamar/{id}/edit', [KosController::class, 'edit'])->name('kamar.edit');
+    Route::put('/kamar/{id}', [KosController::class, 'update'])->name('kamar.update');
+    Route::delete('/kamar/{id}', [KosController::class, 'destroy'])->name('kamar.destroy');
+    Route::get('/kamar/monitoring', [KosController::class, 'monitoringKamar'])->name('kamar.monitoring');
+    
+    // Kelola Users & Verifikasi Sewa (Fitur Dhea & Dinda)
     Route::get('/users/calon-penyewa', [KosController::class, 'listCalonPenyewa'])->name('users.calon_penyewa');
+    Route::get('/users/penghuni', [KosController::class, 'listPenghuni'])->name('users.penghuni');
+    Route::post('/users/terima/{id}', [KosController::class, 'terimaPenyewa'])->name('users.terima');
+    Route::post('/users/tolak/{id}', [KosController::class, 'tolakPenyewa'])->name('users.tolak');
+    Route::post('/users/penghuni/konfirmasi/{id}', [KosController::class, 'konfirmasiLunas'])->name('users.konfirmasi_lunas');
+    Route::delete('/users/penghuni/{id}', [KosController::class, 'batalkanSewa'])->name('users.destroy');
     Route::post('/tagihans', function () { return back(); })->name('tagihans.store');
+
+    // Komplain Masuk Ke Pemilik (Fitur Dhea)
+    Route::get('/komplains/masuk', [KosController::class, 'listKomplain'])->name('komplains.index');
+    Route::post('/komplains/selesai/{id}', [KosController::class, 'komplainSelesai'])->name('komplains.selesai');
     
     Route::get('/settings', function () {
         abort_unless(auth()->user()->role === 'pemilik', 403);
@@ -40,68 +60,50 @@ Route::middleware('auth')->prefix('pemilik')->name('pemilik.')->group(function (
 });
 
 // ==========================================
-// DASHBOARD PENGHUNI KOS (FITUR LENGKAP & AMAN REVISI)
+// DASHBOARD PENGHUNI KOS (REVISI DINDA - FITUR SINKRON)
 // ==========================================
-Route::middleware('auth')->prefix('penghuni')->name('penghuni.')->group(function () {
+Route::middleware(['auth'])->prefix('penghuni')->name('penghuni.')->group(function () {
     
-    // 1. Dashboard Informasi Kamar (Sudah Rapi & Bersih Tanpa Kotak Putih)
     Route::get('/dashboard', function () {
         abort_unless(auth()->user()->role === 'penghuni', 403);
-        
         $user = auth()->user(); 
         
-        // Mengambil data riwayat pembayaran & komplain asli dari database
-        $riwayatBayar = \Illuminate\Support\Facades\DB::table('pembayarans')->where('user_id', $user->id)->latest()->get();
-        $riwayatKomplain = \Illuminate\Support\Facades\DB::table('komplains')->where('user_id', $user->id)->latest()->get();
+        $riwayatBayar = DB::table('pembayarans')->where('user_id', $user->id)->latest()->get();
+        $riwayatKomplain = DB::table('komplains')->where('user_id', $user->id)->latest()->get();
         
-        // Statistik untuk box dashboard
-        $totalTagihan = \Illuminate\Support\Facades\DB::table('tagihans')->where('user_id', $user->id)->count();
+        $totalTagihan = DB::table('tagihans')->where('user_id', $user->id)->count();
         $totalKomplain = $riwayatKomplain->count();
         
-        // Data static informasi kamar
         $infoKamar = [
             'nomor_kamar' => 'A-03', 
             'jatuh_tempo' => date('Y-m-d', strtotime('+1 month')),
             'harga' => 1500000
         ];
 
-        // Datanya tetap diambil di background biar tidak hilang
         $tesSession = session('info_tes_session');
         $waktuMasuk = session('waktu_masuk');
         $tesCookie = request()->cookie('cookie_user_kosmate');
         
-        // Dikirim secara aman ke file Blade tanpa merusak tampilan HTML luar
         return view('roles.penghuni', compact('user', 'totalTagihan', 'totalKomplain', 'infoKamar', 'riwayatBayar', 'riwayatKomplain', 'tesSession', 'waktuMasuk', 'tesCookie'));
     })->name('dashboard');
 
-    // 2. Upload Bukti Pembayaran (DIALIKKAN KE TagihanController)
+    Route::get('/komplain', [KomplainController::class, 'index'])->name('komplain.index');
     Route::post('/upload-pembayaran', [TagihanController::class, 'uploadPembayaran'])->name('upload_pembayaran');
-
-    // 4. Cetak Kuitansi Digital (DIALIKKAN KE TagihanController)
     Route::get('/kuitansi/{id}/cetak', [TagihanController::class, 'cetakKuitansi'])->name('cetak_kuitansi');
-
-    // 3. Formulir Komplain Fasilitas (DIALIKKAN KE KomplainController)
     Route::post('/kirim-komplain', [KomplainController::class, 'kirimKomplain'])->name('kirim_komplain');
-    Route::post('/komplain', [KomplainController::class, 'kirimKomplain'])->name('komplain.store');
+    Route::post('/komplain', [KomplainController::class, 'store'])->name('komplain.store');
     Route::post('/komplains-typo', [KomplainController::class, 'kirimKomplain'])->name('komplains.store'); 
-
-    // JALUR TAGIHAN LAMA
-    Route::get('/tagihan', function () { 
-        return view('roles.tagihan'); 
-    })->name('tagihan.index');
-    Route::get('/tagihans-typo', function () { 
-        return view('roles.tagihan'); 
-    })->name('tagihans.index');
+    Route::get('/tagihan', fn() => view('roles.tagihan'))->name('tagihan.index');
+    Route::get('/tagihans-typo', function () { return view('roles.tagihan'); })->name('tagihans.index');
 });
 
 // ==========================================
-// DASHBOARD CALON PENYEWA
+// DASHBOARD CALON PENYEWA (GABUNGAN DINDA & DHEA)
 // ==========================================
-Route::middleware('auth')->prefix('calon-penyewa')->name('calon-penyewa.')->group(function () {
-    Route::get('/dashboard', function () {
-        abort_unless(auth()->user()->role === 'calon_penyewa', 403);
-        return app(\App\Http\Controllers\KosController::class)->calonPenyewa();
-    })->name('dashboard');
-
-    Route::post('/booking/{kamar_id}', [KosController::class, 'prosesBooking'])->name('booking.store');
+Route::middleware(['auth'])->prefix('calon-penyewa')->name('calon-penyewa.')->group(function () {
+    Route::get('/dashboard', [KosController::class, 'dashboardCalonPenyewa'])->name('dashboard');
+    Route::get('/katalog', [KosController::class, 'katalogKamar'])->name('katalog');
+    Route::post('/booking/{id}', [KosController::class, 'prosesBooking'])->name('booking');
+    Route::get('/kamar/detail/{id}', [KosController::class, 'detailKamar'])->name('kamar.detail');
+    Route::post('/booking-lama/{kamar_id}', [KosController::class, 'prosesBooking'])->name('booking.store');
 });
