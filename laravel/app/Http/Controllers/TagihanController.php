@@ -3,24 +3,25 @@
 namespace App\Http\Controllers;
 
 use App\Models\Tagihan;
-use App\Models\Kamar; // Pastikan Model Kamar di-import jika ada update kamar
+use App\Models\Kamar;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB; // WAJIB di-import untuk transaction
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class TagihanController extends Controller
 {
-    // 1. CODE LAMAMU (Tetap dipertahankan)
+    // 1. Index Tagihan
     public function index()
     {
-        if (auth()->user()->role === 'pemilik') {
+        if (Auth::user()->role === 'pemilik') {
             $tagihans = Tagihan::with('user')->orderBy('created_at','desc')->get();
         } else {
-            $tagihans = Tagihan::where('user_id', auth()->id())->get();
+            $tagihans = Tagihan::where('user_id', Auth::id())->get();
         }
         return view('tagihans.index', compact('tagihans'));
     }
 
-    // 2. CODE LAMAMU (Tetap dipertahankan)
+    // 2. Store Tagihan
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -36,40 +37,56 @@ class TagihanController extends Controller
         return back()->with('message','Tagihan dibuat');
     }
 
-    // 3. FUNGSI BARU (Penerapan Prinsip ACID untuk modul tugasmu)
-    // Digunakan saat pemilik mengonfirmasi bahwa tagihan sudah dibayar
-    public function konfirmasiPembayaran(Request $request, $id)
+    // 3. Konfirmasi Pembayaran (Prinsip ACID - Aman untuk data keuangan)
+    public function konfirmasiPembayaran(Request $request, int $id)
     {
         $request->validate([
             'kamar_id' => 'required|exists:kamars,id',
         ]);
 
-        // ATOMICITY dimula dari sini
         DB::beginTransaction();
-
         try {
-            // Aksi 1: Update status tagihan jadi lunas
+            // Update status tagihan
             $tagihan = Tagihan::findOrFail($id);
-            $tagihan->update([
-                'status' => 'lunas' // Memastikan data konsisten (Consistency)
-            ]);
+            $tagihan->update(['status' => 'lunas']);
 
-            // Aksi 2: Update status kamar terkait menjadi 'terisi' atau perpanjang tanggal
+            // Update status kamar
             $kamar = Kamar::findOrFail($request->kamar_id);
-            $kamar->update([
-                'status' => 'terisi' 
-            ]);
+            $kamar->update(['status' => 'terisi']);
 
-            // Jika Aksi 1 dan Aksi 2 sukses tanpa error, kunci data secara permanen (Durability)
             DB::commit();
-
-            return back()->with('message', 'Pembayaran tagihan berhasil dikonfirmasi dan kamar telah diperbarui.');
-
+            return back()->with('message', 'Pembayaran berhasil dikonfirmasi dan kamar telah diperbarui.');
         } catch (\Exception $e) {
-            // Jika salah satu aksi gagal (misal tabel kamar error), batalkan semua! (Atomicity)
             DB::rollBack();
-
             return back()->with('error', 'Gagal memproses konfirmasi: ' . $e->getMessage());
         }
+    }
+
+    // 4. Upload Pembayaran (Fitur dari Dinda)
+    public function uploadPembayaran(Request $request)
+    {
+        $request->validate([
+            'jumlah_bayar' => 'required|numeric',
+            'nomor_kamar' => 'required'
+        ]);
+
+        DB::table('pembayarans')->insert([
+            'user_id' => Auth::id(),
+            'jumlah_bayar' => $request->jumlah_bayar,
+            'nomor_kamar' => $request->nomor_kamar,
+            'bukti_transfer' => 'Tanpa Gambar',
+            'status' => 'pending', 
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return back()->with('success', 'Konfirmasi nominal pembayaran berhasil dikirim!');
+    }
+
+    // 5. Cetak Kuitansi (Fitur dari Dinda)
+    public function cetakKuitansi(int $id)
+    {
+        // Placeholder: Tambahkan logic PDF nantinya
+        return "Halaman Cetak Kuitansi ID: " . $id . " (Fitur export PDF sedang disiapkan)";
     }
 }

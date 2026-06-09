@@ -8,7 +8,9 @@ use App\Models\User;
 use App\Models\Komplain; 
 use Illuminate\Support\Facades\Auth; 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Schema;
 
 class KosController extends Controller
 {
@@ -69,7 +71,7 @@ class KosController extends Controller
 
         $users = User::where('role', 'calon_penyewa')->get();
 
-        return view('roles.calon-penyewa', compact('users'));
+        return view('pemilik.users_calon_penyewa', compact('users'));
     }
 
     // ==========================================
@@ -161,9 +163,6 @@ class KosController extends Controller
         return redirect()->route('pemilik.kamar.index')->with('message', 'Kamar berhasil dihapus.');
     }
 
-    // ==========================================
-    // KELOLA AKSI PENGGUNA & TAGIHAN
-    // ==========================================
     public function terimaPenyewa(int $id)
     {
         if (Auth::user()->role !== 'pemilik') {
@@ -200,7 +199,7 @@ class KosController extends Controller
         return view('pemilik.users_penghuni', compact('users'));
     }
 
-    public function konfirmasiLunas($id)
+    public function konfirmasiLunas(int $id)
     {
         if (!Auth::check() || Auth::user()->role !== 'pemilik') {
             abort(403);
@@ -231,7 +230,7 @@ class KosController extends Controller
         return view('pemilik.komplain_index', compact('komplains'));
     }
 
-    public function komplainSelesai($id)
+    public function komplainSelesai(int $id)
     {
         if (!Auth::check() || Auth::user()->role !== 'pemilik') {
             abort(403);
@@ -245,7 +244,7 @@ class KosController extends Controller
     }
 
     // ==========================================
-    // 🛠️ MONITORING VISUAL KAMAR (SINKRON DATA ASLI)
+    // MONITORING VISUAL KAMAR (SINKRON DATA ASLI)
     // ==========================================
     public function monitoringKamar()
     {
@@ -262,7 +261,7 @@ class KosController extends Controller
     }
 
     // ==========================================
-    // 📊 REVISI AKURASI DATA: GRAPHIC FEATURE & PRINT REPORT
+    // REVISI AKURASI DATA: GRAPHIC FEATURE & PRINT REPORT
     // ==========================================
     public function grafikPendapatan()
     {
@@ -297,9 +296,9 @@ class KosController extends Controller
         return view('pemilik.laporan_cetak', compact('kamars', 'penghunis', 'totalPemasukan'));
     }
 
-    public function batalkanSewa($id)
+    public function batalkanSewa(int $id)
     {
-        $user = \App\Models\User::findOrFail($id);
+        $user = User::findOrFail($id);
         $noKamar = $user->no_kamar; // Ini harusnya berisi "Deluxe"
 
         // 1. UPDATE KAMAR: Cari yang tipe_kamar nya sama dengan yang dipesan user
@@ -309,7 +308,7 @@ class KosController extends Controller
             
             // Logika untuk memastikan kalau ternyata gagal update
             if (!$updateKamar) {
-                \Log::error("Gagal update kamar: " . $noKamar);
+                Log::error("Gagal update kamar: " . $noKamar);
             }
         }
 
@@ -323,46 +322,51 @@ class KosController extends Controller
         return redirect()->back()->with('success', 'Sewa dibatalkan. Kamar statusnya sudah diubah ke Tersedia.');
     }
 
-    public function prosesBooking(Request $request, $id)
-    {
-        return DB::transaction(function () use ($id) {
-            $kamar = \App\Models\Kamar::where('id', $id)->lockForUpdate()->firstOrFail();
-
-            if ($kamar->status !== 'Tersedia') {
-                return redirect()->back()->with('error', 'Maaf, kamar sudah tidak tersedia.');
-            }
-
-            // Update status kamar jadi dipesan/proses
-            $kamar->update(['status' => 'Terisi']); 
-
-            // Update user: Set no_kamar dan tandai sedang mengajukan sewa
-            auth()->user()->update([
-                'no_kamar' => $kamar->tipe_kamar, // Sesuaikan field
-                'status_tagihan' => 'menunggu_konfirmasi'
-            ]);
-
-            return redirect()->route('calon-penyewa.dashboard')->with('success', 'Booking berhasil! Menunggu konfirmasi pemilik.');
-        });
-    }
+    
 
     public function dashboardCalonPenyewa()
     {
-        $user = auth()->user();
-        // Jika sudah punya no_kamar, berarti sedang menunggu verifikasi/sudah diterima
+        $user = Auth::user();
         return view('roles.calon-penyewa-dashboard', compact('user'));
     }
 
     public function katalogKamar()
     {
-        // Mengambil semua kamar yang statusnya 'Tersedia'
         $kamars = Kamar::where('status', 'Tersedia')->get();
-        
         return view('roles.katalog', compact('kamars'));
     }
 
-    public function detailKamar($id) 
+    public function detailKamar(int $id) 
     {
-    $kamar = \App\Models\Kamar::findOrFail($id);
-    return view('roles.detail-kamar', compact('kamar'));
+        $kamar = Kamar::findOrFail($id);
+        return view('roles.detail-kamar', compact('kamar'));
+    }
+
+    // Tambahkan di dalam KosController
+    public function listPembayaran()
+    {
+        if (!Auth::check() || Auth::user()->role !== 'pemilik') {
+            abort(403);
+        }
+
+        // Mengambil data pembayaran beserta data user-nya
+        $pembayarans = \App\Models\Pembayaran::with('user')->orderBy('created_at', 'desc')->get();
+
+        return view('pemilik.pembayaran_index', compact('pembayarans'));
+    }
+
+    public function konfirmasiPembayaran(int $id)
+    {
+        $pembayaran = \App\Models\Pembayaran::findOrFail($id);
+
+        // 1. Update status pembayaran jadi lunas
+        $pembayaran->update(['status' => 'lunas']);
+
+        // 2. SINKRONISASI PENTING: Update status_tagihan di tabel users
+        \App\Models\User::where('id', $pembayaran->user_id)->update([
+            'status_tagihan' => 'lunas'
+        ]);
+
+        return redirect()->back()->with('success', 'Pembayaran berhasil dikonfirmasi!');
     }
 }

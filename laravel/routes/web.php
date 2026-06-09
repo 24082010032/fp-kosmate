@@ -4,6 +4,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\KosController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\KomplainController;
+use App\Http\Controllers\TagihanController;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 // ==========================================
@@ -21,11 +23,8 @@ Route::get('/', [KosController::class, 'welcome'])->name('welcome');
 // DASHBOARD PEMILIK KOS
 // ==========================================
 Route::middleware(['auth'])->prefix('pemilik')->name('pemilik.')->group(function () {
-    
-    Route::get('/dashboard', function () {
-        abort_unless(auth()->user()->role === 'pemilik', 403);
-        return app(KosController::class)->pemilik();
-    })->name('dashboard');
+    Route::get('/dashboard', [KosController::class, 'pemilik'])->name('dashboard');
+    Route::get('/settings', fn() => view('pemilik.settings'))->name('settings');
     
     Route::get('/pendapatan/grafik', [KosController::class, 'grafikPendapatan'])->name('pendapatan.grafik');
     Route::get('/laporan/cetak', [KosController::class, 'cetakLaporan'])->name('laporan.cetak');
@@ -39,7 +38,7 @@ Route::middleware(['auth'])->prefix('pemilik')->name('pemilik.')->group(function
     Route::delete('/kamar/{id}', [KosController::class, 'destroy'])->name('kamar.destroy');
     Route::get('/kamar/monitoring', [KosController::class, 'monitoringKamar'])->name('kamar.monitoring');
     
-    // Kelola Users
+    // Kelola Users & Penghuni
     Route::get('/users/calon-penyewa', [KosController::class, 'listCalonPenyewa'])->name('users.calon_penyewa');
     Route::get('/users/penghuni', [KosController::class, 'listPenghuni'])->name('users.penghuni');
     Route::post('/users/terima/{id}', [KosController::class, 'terimaPenyewa'])->name('users.terima');
@@ -57,16 +56,46 @@ Route::middleware(['auth'])->prefix('pemilik')->name('pemilik.')->group(function
 // ==========================================
 Route::middleware(['auth'])->prefix('penghuni')->name('penghuni.')->group(function () {
     Route::get('/dashboard', function () {
-        abort_unless(auth()->user()->role === 'penghuni', 403);
-        $user = auth()->user();
+        abort_unless(Auth::user()->role === 'penghuni', 403);
+        
+        $user = Auth::user();
+        
+        // Mengambil data untuk tabel riwayat agar tidak error "Undefined variable"
+        $riwayatBayar = DB::table('pembayarans')->where('user_id', $user->id)->latest()->get();
+        $riwayatKomplain = DB::table('komplains')->where('user_id', $user->id)->latest()->get();
+        
+        // Statistik untuk widget dashboard
         $totalTagihan = DB::table('tagihans')->where('user_id', $user->id)->count();
-        $totalKomplain = DB::table('komplains')->where('user_id', $user->id)->count();
-        return view('roles.penghuni', compact('user', 'totalTagihan', 'totalKomplain'));
+        $totalKomplain = $riwayatKomplain->count();
+        
+        // Mengirim semua variabel ke view
+        return view('roles.penghuni', compact(
+            'user', 
+            'totalTagihan', 
+            'totalKomplain', 
+            'riwayatBayar', 
+            'riwayatKomplain'
+        ));
     })->name('dashboard');
 
     Route::get('/komplain', [KomplainController::class, 'index'])->name('komplain.index');
+    
+    // Route untuk form komplain
     Route::post('/komplain', [KomplainController::class, 'store'])->name('komplain.store');
+    Route::post('/kirim-komplain', [KomplainController::class, 'store'])->name('kirim_komplain'); 
+    
+    // Fitur Tambahan Dinda
+    Route::post('/upload-pembayaran', [TagihanController::class, 'uploadPembayaran'])->name('upload_pembayaran');
+    Route::get('/kuitansi/{id}/cetak', [TagihanController::class, 'cetakKuitansi'])->name('cetak_kuitansi');
     Route::get('/tagihan', fn() => view('roles.tagihan'))->name('tagihan.index');
+
+    // Pastikan ini mengarah ke file komplain_index.blade.php
+    Route::get('/komplain', [KomplainController::class, 'index'])->name('komplain.index');
+    
+    // Ini adalah route yang tadi menyebabkan error "Route [penghuni.kirim_komplain] not defined"
+    // Pastikan route ini ada di dalam group 'penghuni' agar Laravel mengenali prefix-nya
+    Route::post('/komplain', [KomplainController::class, 'store'])->name('komplain.store');
+    Route::post('/kirim-komplain', [KomplainController::class, 'store'])->name('kirim_komplain');
 });
 
 // ==========================================
@@ -76,5 +105,10 @@ Route::middleware(['auth'])->prefix('calon-penyewa')->name('calon-penyewa.')->gr
     Route::get('/dashboard', [KosController::class, 'dashboardCalonPenyewa'])->name('dashboard');
     Route::get('/katalog', [KosController::class, 'katalogKamar'])->name('katalog');
     Route::post('/booking/{id}', [KosController::class, 'prosesBooking'])->name('booking');
-    Route::get('/kamar/detail/{id}', [App\Http\Controllers\KosController::class, 'detailKamar'])->name('kamar.detail');
+    Route::get('/kamar/detail/{id}', [KosController::class, 'detailKamar'])->name('kamar.detail');
+});
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/pemilik/pembayaran', [App\Http\Controllers\KosController::class, 'listPembayaran'])->name('pemilik.pembayaran');
+    Route::post('/pemilik/pembayaran/konfirmasi/{id}', [App\Http\Controllers\KosController::class, 'konfirmasiPembayaran'])->name('pemilik.konfirmasiPembayaran');
 });
