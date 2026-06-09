@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Cookie; // Ditambahkan untuk urusan cookie
 
 class AuthController extends Controller
 {
@@ -39,6 +40,16 @@ class AuthController extends Controller
 
         Auth::login($user);
 
+        // ==================================================
+        // COOKIE & SESSION SAAT REGISTRASI
+        // ==================================================
+        session([
+            'info_pendaftaran' => 'Akun baru berhasil didaftarkan!',
+            'waktu_daftar' => now()->toDateTimeString()
+        ]);
+        Cookie::queue('email_pendaftar_terakhir', $user->email, 60);
+        // ==================================================
+
         return $this->redirectByRole($user);
     }
 
@@ -51,6 +62,17 @@ class AuthController extends Controller
 
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
+
+            // ==================================================
+            // COOKIE & SESSION SAAT LOGIN
+            // ==================================================
+            session([
+                'info_tes_session' => 'Session ini berhasil dibuat dari AuthController!',
+                'waktu_masuk' => now()->toDateTimeString()
+            ]);
+            Cookie::queue('cookie_user_kosmate', $request->email, 60);
+            // ==================================================
+
             return $this->redirectByRole(Auth::user());
         }
 

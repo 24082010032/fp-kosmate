@@ -44,7 +44,7 @@ Route::middleware('auth')->prefix('pemilik')->name('pemilik.')->group(function (
 // ==========================================
 Route::middleware('auth')->prefix('penghuni')->name('penghuni.')->group(function () {
     
-    // 1. Dashboard Informasi Kamar (Menampilkan Data Tagihan & Komplain)
+    // 1. Dashboard Informasi Kamar (Sudah Rapi & Bersih Tanpa Kotak Putih)
     Route::get('/dashboard', function () {
         abort_unless(auth()->user()->role === 'penghuni', 403);
         
@@ -64,8 +64,14 @@ Route::middleware('auth')->prefix('penghuni')->name('penghuni.')->group(function
             'jatuh_tempo' => date('Y-m-d', strtotime('+1 month')),
             'harga' => 1500000
         ];
+
+        // Datanya tetap diambil di background biar tidak hilang
+        $tesSession = session('info_tes_session');
+        $waktuMasuk = session('waktu_masuk');
+        $tesCookie = request()->cookie('cookie_user_kosmate');
         
-        return view('roles.penghuni', compact('user', 'totalTagihan', 'totalKomplain', 'infoKamar', 'riwayatBayar', 'riwayatKomplain'));
+        // Dikirim secara aman ke file Blade tanpa merusak tampilan HTML luar
+        return view('roles.penghuni', compact('user', 'totalTagihan', 'totalKomplain', 'infoKamar', 'riwayatBayar', 'riwayatKomplain', 'tesSession', 'waktuMasuk', 'tesCookie'));
     })->name('dashboard');
 
     // 2. Upload Bukti Pembayaran (DIALIKKAN KE TagihanController)

@@ -11,7 +11,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // KITA MATIKAN ENKRIPSI COOKIE-NYA DI SINI, COK!
+        $middleware->encryptCookies(except: [
+            'kosmate_session',
+            'cookie_user_kosmate',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
